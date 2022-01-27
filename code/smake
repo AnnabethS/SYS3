@@ -1,0 +1,7 @@
+rm $1
+cd code
+rm $1
+g++ -o $1 $1.cpp pipeline.cpp
+//g++ -o $1
+cp $1 ../$1
+cd ..
