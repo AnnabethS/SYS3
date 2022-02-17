@@ -7,7 +7,9 @@
 
 /////////////////////////////////////////////
 // declare function prototypes
- 
+
+void fixRAW();
+int getRAWOffset(int row, int cycle, int regNum);
  
 /////////////////////////////////////////////
 // global variables and class instances
@@ -67,11 +69,55 @@ int main(int argc, char * argv[])
         //
         // calls to custom functions here
         //
+		fixRAW();
     
     // output resulting pipeline diagram, and test for hazards
-       // Pipe.DumpPipeline();
-       // Pipe.PipelineTest();
+       Pipe.DumpPipeline();
+       Pipe.PipelineTest();
     
     // end of code     
 }
 
+void fixRAW()
+{
+	for(int i=0; i < Pipe.PipelinedCycles; i++)
+	{
+		for(int j=0; j < Pipe.OpCount; j++)
+		{
+			if(Pipe.IsStageRR(j, i))
+			{ //we are looking at a read stage
+				printf("read_at: cycle %d, instruction %d regnum %d\n", i, j, Pipe.GetRegNum(j, i));
+				int x = getRAWOffset(j, i, Pipe.GetRegNum(j, i));
+				for(int k=0; k < x; k++)
+					Pipe.InsertStall(j, i);
+				if(x != 0)
+				{
+					Pipe.CalculateCycles();
+					i = 0;
+					j = 0;
+				}
+				printf("%d\n", x);
+			}
+		}
+	}
+}
+
+// returns 0 on no RAW, +ve on the amount of cycles the read must be delayed
+int getRAWOffset(int row, int cycle, int regNum)
+{
+	printf("checking for regnum: %d\n", regNum);
+	for(int i=row-1; i >= 0; i--)
+	{
+		for(int j=cycle; j <= Pipe.PipelinedCycles; j++)
+		{
+			if(Pipe.IsStageWB(i, j))
+			{
+				if(Pipe.GetRegNum(i, j) == regNum)
+				{
+					return (j - cycle) + 1;
+				}
+			}
+		}
+	}
+	return 0;
+}
